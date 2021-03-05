@@ -1,0 +1,23 @@
+{
+  "name": "node-uniauth",
+  "version": "1.0.0-dev",
+  "description": "Uniauth server implementation",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://git.rserver.us/network/node-uniauth.git"
+  },
+  "keywords": [
+    "uniauth"
+  ],
+  "author": "Roger P. Gee",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^7.1.0",
+    "deepmerge": "^4.2.2",
+    "yaml": "^1.10.0"
+  }
+}
