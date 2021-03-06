@@ -5,8 +5,11 @@
  */
 
 const fs = require("fs");
+const net = require("net");
 const YAML = require("yaml");
 const merge = require("deepmerge");
+
+const { SessionHandler } = require("./session-handler");
 
 const OPTION_DEFAULTS = {
     debug: false,
@@ -19,12 +22,12 @@ const OPTION_DEFAULTS_DEBUG = {
 };
 
 const CONFIG_DEFAULTS = {
-    listenSock: "/var/run/node-uniauth.sock",
+    listenSocket: "/var/run/node-uniauth.sock",
     recordStore: "/var/lib/node-uniauth/records.db"
 };
 
 const CONFIG_DEFAULTS_DEBUG = {
-    listenSock: "./local/listen.sock",
+    listenSocket: "./local/listen.sock",
     recordStore: "./local/records.db"
 };
 
@@ -38,7 +41,9 @@ class Kernel {
         }
 
         this.config = {};
-        this.listener = null;
+
+        this.sessionServer = null;
+        this.sessionHandlers = new Map();
     }
 
     start() {
@@ -59,17 +64,71 @@ class Kernel {
                     this.config = merge(CONFIG_DEFAULTS,parsed);
                 }
             }
+            else {
+                this.config = this.options.debug
+                    ? CONFIG_DEFAULTS_DEBUG
+                    : CONFIG_DEFAULTS;
+            }
 
             this._serve();
         });
     }
 
-    stop(signal) {
-
+    stop(signal,callback) {
+        this.sessionHandlers.forEach((handler) => {
+            handler.stop();
+        });
+        this.sessionServer.close(callback);
     }
 
     _serve() {
+        this.sessionServer = new net.Server();
+        this.sessionServer.listen(this.config.listenSocket);
 
+        this.sessionServer.on("connection",(sock) => {
+            const handler = new SessionHandler(this,sock);
+
+            this.sessionHandlers.set(handler.getId(),handler);
+            handler.start();
+
+            handler.on("done",(id) => {
+                this.sessionHandlers.delete(id);
+            });
+        });
+
+        this.sessionServer.on("error",(error) => {
+            if (error.code == "EADDRINUSE") {
+                const sock = new net.Socket();
+                sock.on("error",(innerError) => {
+                    if (innerError.code == "ECONNREFUSED") {
+                        fs.unlink(this.config.listenSocket, (err) => {
+                            if (err) {
+                                console.error(
+                                    "Cannot listen on '"
+                                        + this.config.listenSocket
+                                        + "': cannot recreate socket"
+                                );
+                                process.exitCode = 1;
+                                return;
+                            }
+
+                            this.sessionServer.listen(this.config.listenSocket);
+                        });
+                    }
+                });
+
+                sock.connect({ path: this.config.listenSocket }, () => {
+                    console.error(
+                        "Cannot listen on '"
+                            + this.config.listenSocket
+                            + "': socket in use"
+                    );
+                    process.exitCode = 1;
+
+                    sock.destroy();
+                });
+            }
+        });
     }
 }
 
