@@ -30,7 +30,49 @@ class Record {
         this.lifetime = lifetime;
     }
 
-    toBuf() {
+    /**
+     * Determines if the record is active (i.e. refers to a valid user).
+     *
+     * @return {boolean}
+     */
+    isActive() {
+        return typeof this.uid === "number" && this.uid >= 1;
+    }
+
+    /**
+     * Deactivates the record.
+     */
+    purge() {
+        this.uid = null;
+        this.user = null;
+        this.display = null;
+        this.expire = null;
+        this.lifetime = null;
+    }
+
+    /**
+     * Checks if the record is expired. If so, the record is purged.
+     *
+     * @return {boolean}
+     *  Returns true if the record was expired and purged.
+     */
+    checkExpire() {
+        const ts = Date.now() / 1000;
+
+        if (this.isActive() && ts >= this.expire) {
+            this.purge();
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Gets the protocol representation of the record.
+     *
+     * @return {string}
+     */
+    toProtocol() {
         let buf = "";
         const intbuf = Buffer.alloc(8);
 
@@ -69,19 +111,34 @@ class Session {
         this.tag = null;
     }
 
-    assign(record) {
-
+    /**
+     * Determines if the session is active (i.e. is linked to a valid user
+     * record).
+     *
+     * @return {true}
+     */
+    isActive() {
+        return this.record != null && this.record.isActive();
     }
 
-    toBuf() {
+    assign(record) {
+        this.record = record;
+    }
+
+    /**
+     * Gets the protocol representation of the session.
+     *
+     * @return {string}
+     */
+    toProtocol() {
         let buf = "";
 
         buf += FIELD_KEY;
         buf += this.key;
         buf += END_OF_STR;
 
-        if (this.record) {
-            buf += this.record.toBuf();
+        if (this.isActive()) {
+            buf += this.record.toProtocol();
         }
 
         if (this.redirect) {

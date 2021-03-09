@@ -111,15 +111,15 @@ class MessageParser extends EventEmitter {
 
             const op = this.buffer[this.iterator].toString();
 
-            if (op in OP_MAP) {
-                this.current.op = OP_MAP[op];
-                this.state = STATE_FIELD;
-                this.iterator += 1;
-            }
-            else {
+            if (!(op in OP_MAP)) {
                 this.emit("error","Bad message operator",this.current);
                 this.reset();
+                return false;
             }
+
+            this.current.op = OP_MAP[op];
+            this.state = STATE_FIELD;
+            this.iterator += 1;
         }
 
         while (this.state == STATE_FIELD) {
@@ -130,6 +130,7 @@ class MessageParser extends EventEmitter {
             const fld = this.buffer[this.iterator];
 
             if (fld == FIELD_END) {
+                this.iterator += 1;
                 this.messages.unshift(this.current);
                 this.reset(true);
                 return true;

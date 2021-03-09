@@ -60,12 +60,15 @@ class SessionHandler extends EventEmitter {
 
     handleLookup(message) {
         const sess = this.kernel.sessionStorage.get(message.fields.key);
-        if (!sess) {
+        if (!sess || !sess.isActive()) {
             this.sendError("no such record");
             return;
         }
 
-        // TODO: Check record lifetime
+        if (sess.record.checkExpire()) {
+            this.sendError("no such record");
+            return;
+        }
 
         this.sendRecord(session);
     }
@@ -84,7 +87,7 @@ class SessionHandler extends EventEmitter {
         let buf = "";
 
         buf += RESPONSE_RECORD;
-        buf += session.toBuf();
+        buf += session.toProtocol();
 
         this.writeOut(buf);
     }
@@ -95,7 +98,7 @@ class SessionHandler extends EventEmitter {
             return;
         }
 
-        const result = this.sock.write(buf);
+        const result = this.sock.write(buf,"binary");
 
         if (!result) {
             this.unsent = "";
