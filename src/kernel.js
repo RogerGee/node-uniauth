@@ -44,6 +44,7 @@ class Kernel {
 
         this.sessionServer = null;
         this.sessionHandlers = new Map();
+        this.sessionStorage = new Map();
     }
 
     start() {
