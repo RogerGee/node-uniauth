@@ -30,20 +30,23 @@ class SessionHandler extends EventEmitter {
 
     start() {
         const handlefn = this.handle.bind(this);
-        this.parser.on("message",handlefn);
-        this.parser.on("error",(message,partial) => {
-            this.sock.destroy();
-            this.emit("done",this.id);
-            this.parser = null;
-        });
-    }
-
-    stop() {
         this.sock.on("close",() => {
             this.emit("done",this.id);
             this.parser = null;
         });
-        this.sock.end();
+
+        this.parser.on("message",handlefn);
+        this.parser.on("error",(message,partial) => {
+            this.sock.destroy();
+        });
+    }
+
+    stop() {
+        // We have to destroy the socket as opposed to close it. This is because
+        // the uniauth protocol does not officially negotiate end of
+        // transmission, and a client is not expected to respond to shutdown
+        // anytime soon.
+        this.sock.destroy();
     }
 
     handle(message) {
