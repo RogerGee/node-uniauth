@@ -82,6 +82,24 @@ class Kernel {
         this.sessionServer.close(callback);
     }
 
+    getSession(key) {
+        return this.sessionStorage.get(key);
+    }
+
+    putSession(sess) {
+        this.sessionStorage.set(sess.key,sess);
+    }
+
+    purgeSession(key) {
+        const sess = this.sessionStorage.get(key);
+        if (!sess) {
+            return;
+        }
+
+        this.sessionStorage.delete(key);
+        sess.purge();
+    }
+
     _serve() {
         this.sessionServer = new net.Server();
         this.sessionServer.listen(this.config.listenSocket);

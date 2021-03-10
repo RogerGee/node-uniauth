@@ -22,49 +22,34 @@ const END_OF_STR = "\u0000";
  * Represents a uniauth user record.
  */
 class Record {
-    constructor(uid,user,display,lifetime) {
-        this.uid = uid;
-        this.user = user;
-        this.display = display;
-        this.expire = Math.floor((lifetime * 1000 + Date.now()) / 1000);
-        this.lifetime = lifetime;
+    constructor() {
+        this.purge();
     }
 
     /**
-     * Determines if the record is active (i.e. refers to a valid user).
+     * Determines if the record is active (i.e. has a user assignment and is not
+     * passed its expiration).
      *
      * @return {boolean}
      */
     isActive() {
-        return typeof this.uid === "number" && this.uid >= 1;
-    }
+        if (this.uid >= 1) {
+            const ts = Date.now() / 1000;
 
-    /**
-     * Deactivates the record.
-     */
-    purge() {
-        this.uid = null;
-        this.user = null;
-        this.display = null;
-        this.expire = null;
-        this.lifetime = null;
-    }
-
-    /**
-     * Checks if the record is expired. If so, the record is purged.
-     *
-     * @return {boolean}
-     *  Returns true if the record was expired and purged.
-     */
-    checkExpire() {
-        const ts = Date.now() / 1000;
-
-        if (this.isActive() && ts >= this.expire) {
-            this.purge();
-            return true;
+            if (ts < this.expire) {
+                return true;
+            }
         }
 
         return false;
+    }
+
+    purge() {
+        this.uid = -1;
+        this.user = null;
+        this.display = null;
+        this.expire = 0;
+        this.lifetime = 0;
     }
 
     /**
@@ -89,7 +74,7 @@ class Record {
         buf += END_OF_STR;
 
         buf += FIELD_EXPIRE;
-        intbuf.writeInt64LE(this.expire);
+        intbuf.writeBigInt64LE(this.expire);
         buf += intbuf.asciiSlice(0,8);
 
         buf += FIELD_LIFETIME;
@@ -106,23 +91,52 @@ class Record {
 class Session {
     constructor(key) {
         this.key = key;
-        this.record = null;
+        this.record = new Record();
         this.redirect = null;
         this.tag = null;
     }
 
     /**
-     * Determines if the session is active (i.e. is linked to a valid user
-     * record).
+     * Determines if the session is active.
      *
      * @return {true}
      */
     isActive() {
-        return this.record != null && this.record.isActive();
+        return this.record.isActive();
     }
 
-    assign(record) {
-        this.record = record;
+    /**
+     * Executes manager-side logic on the session and its associated record.
+     */
+    check() {
+        // Purge the record if is inactive but still has a user ID.
+        if (!this.record.isActive() && this.record.uid >= 1) {
+            this.record.purge();
+        }
+    }
+
+    purge() {
+        this.redirect = null;
+        this.tag = null;
+        this.record.purge();
+    }
+
+    transfer(sess) {
+        this.record = sess.record;
+    }
+
+    commit(fields) {
+        for (const key in fields) {
+            if (key == "redirect") {
+                this.redirect = fields.redirect;
+            }
+            else if (key == "tag") {
+                this.tag = fields.tag;
+            }
+            else {
+                this.record[key] = fields[key];
+            }
+        }
     }
 
     /**
@@ -154,6 +168,8 @@ class Session {
         }
 
         buf += FIELD_END;
+
+        return buf;
     }
 }
 

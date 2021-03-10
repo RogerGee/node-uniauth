@@ -7,6 +7,7 @@
 const EventEmitter = require("events");
 const { v4: uuid } = require("uuid");
 
+const { Session } = require("./record");
 const { MessageParser } = require("./message-parser");
 
 const RESPONSE_MESSAGE = "\u0000";
@@ -33,12 +34,14 @@ class SessionHandler extends EventEmitter {
         this.parser.on("error",(message,partial) => {
             this.sock.destroy();
             this.emit("done",this.id);
+            this.parser = null;
         });
     }
 
     stop() {
         this.sock.on("close",() => {
             this.emit("done",this.id);
+            this.parser = null;
         });
         this.sock.end();
     }
@@ -59,18 +62,69 @@ class SessionHandler extends EventEmitter {
     }
 
     handleLookup(message) {
-        const sess = this.kernel.sessionStorage.get(message.fields.key);
-        if (!sess || !sess.isActive()) {
+        if (!message.fields.key) {
+            this.sendError("protocol error");
+            return;
+        }
+
+        const sess = this.kernel.getSession(message.fields.key);
+        if (!sess) {
             this.sendError("no such record");
             return;
         }
 
-        if (sess.record.checkExpire()) {
+        sess.check();
+        this.sendRecord(sess);
+    }
+
+    handleCommit(message) {
+        if (!message.fields.key) {
+            this.sendError("protocol error");
+            return;
+        }
+
+        const sess = this.kernel.getSession(message.fields.key);
+        if (!sess) {
             this.sendError("no such record");
             return;
         }
 
-        this.sendRecord(session);
+        sess.commit(message.fields);
+        this.sendMessage("changes committed");
+    }
+
+    handleCreate(message) {
+        if (!message.fields.key) {
+            this.sendError("protocol error");
+            return;
+        }
+
+        let sess = this.kernel.getSession(message.fields.key);
+        if (sess && sess.isActive()) {
+            this.sendError("record already exists");
+            return;
+        }
+
+        if (sess) {
+            sess.purge();
+        }
+        else {
+            sess = new Session(message.fields.key);
+            this.kernel.putSession(sess);
+        }
+
+        sess.commit(message.fields);
+        this.sendMessage("record created");
+    }
+
+    sendMessage(message) {
+        let buf = "";
+
+        buf += RESPONSE_MESSAGE;
+        buf += message;
+        buf += "\u0000";
+
+        this.writeOut(buf);
     }
 
     sendError(message) {
@@ -93,6 +147,9 @@ class SessionHandler extends EventEmitter {
     }
 
     writeOut(buf) {
+        const test = Buffer.alloc(buf.length);
+        test.write(buf,0,test.length,"binary");
+
         if (typeof this.unsent === "string") {
             this.unsent += buf;
             return;

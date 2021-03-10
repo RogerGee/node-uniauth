@@ -33,7 +33,7 @@ const STATE_FIELD = 1;
 
 function read_string(buffer,start) {
     let end = buffer.indexOf(0,start);
-    if (end <= 0) {
+    if (end < 0) {
         return false;
     }
 
@@ -57,7 +57,7 @@ function read_integer(buffer,start) {
 function read_time(buffer,start) {
     try {
         return {
-            value: buffer.readInt64LE(start),
+            value: buffer.readBigInt64LE(start),
             offset: start+8
         };
     } catch (err) {
@@ -162,12 +162,11 @@ class MessageParser extends EventEmitter {
 
         if (advance) {
             this.buffer = this.buffer.slice(this.iterator);
-            this.iterator = 0;
         }
         else {
             this.buffer = Buffer.alloc(0);
-            this.iterator = 0;
         }
+        this.iterator = 0;
 
         this.current = {
             op: null,
