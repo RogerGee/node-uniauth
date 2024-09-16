@@ -16,7 +16,7 @@
   "author": "Roger P. Gee",
   "license": "MIT",
   "engines": {
-    "node": ">=10.20"
+    "node": ">=18.20"
   },
   "dependencies": {
     "commander": "^7.1.0",
