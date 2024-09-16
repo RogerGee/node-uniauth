@@ -6,6 +6,7 @@
 
 const fs = require("fs");
 const net = require("net");
+
 const YAML = require("yaml");
 const merge = require("deepmerge");
 
@@ -13,22 +14,30 @@ const { SessionHandler } = require("./session-handler");
 
 const OPTION_DEFAULTS = {
     debug: false,
-    configFile: "/etc/node-uniauth/config.yaml",
+    configFile: "/etc/node-uniauth/config.yml",
 };
 
 const OPTION_DEFAULTS_DEBUG = {
     debug: true,
-    configFile: "./local/config.yaml"
+    configFile: "./local/config.yml"
 };
 
 const CONFIG_DEFAULTS = {
-    listenSocket: "/var/run/node-uniauth.sock",
-    recordStore: "/var/lib/node-uniauth/records.db"
+    listen: {
+        host: null,
+        port: 8000,
+        path: null
+    },
+    record_store: "/var/lib/node-uniauth/records.db"
 };
 
 const CONFIG_DEFAULTS_DEBUG = {
-    listenSocket: "./local/listen.sock",
-    recordStore: "./local/records.db"
+    listen: {
+        host: "127.0.0.1",
+        port: 8002,
+        path: null
+    },
+    record_store: "./local/records.db"
 };
 
 class Kernel {
@@ -100,9 +109,32 @@ class Kernel {
         sess.purge();
     }
 
+    _listen() {
+        if (this.config.listen.path) {
+            if (typeof this.config.listen.path !== "string") {
+                throw new Error("listen.path must be a string");
+            }
+            this.sessionServer.listen(this.config.listen.path);
+        }
+        else if (this.config.listen.port) {
+            if (typeof this.config.listen.port !== "number") {
+                throw new Error("listen.port must be a number");
+            }
+            if (this.config.listen.host) {
+                this.sessionServer.listen(this.config.listen.port,this.config.listen.host);
+            }
+            else {
+                this.sessionServer.listen(this.config.listen.port);
+            }
+        }
+        else {
+            throw new Error("cannot listen: no such configuration");
+        }
+    }
+
     _serve() {
         this.sessionServer = new net.Server();
-        this.sessionServer.listen(this.config.listenSocket);
+        this._listen();
 
         this.sessionServer.on("connection",(sock) => {
             const handler = new SessionHandler(this,sock);
@@ -117,35 +149,42 @@ class Kernel {
 
         this.sessionServer.on("error",(error) => {
             if (error.code == "EADDRINUSE") {
+                if (!this.config.listen.path) {
+                    throw new Error("cannot listen: address is already in use");
+                }
+
                 const sock = new net.Socket();
                 sock.on("error",(innerError) => {
                     if (innerError.code == "ECONNREFUSED") {
-                        fs.unlink(this.config.listenSocket, (err) => {
+                        fs.unlink(this.config.listen.path, (err) => {
                             if (err) {
                                 console.error(
                                     "Cannot listen on '"
-                                        + this.config.listenSocket
+                                        + this.config.listen.path
                                         + "': cannot recreate socket"
                                 );
                                 process.exitCode = 1;
                                 return;
                             }
 
-                            this.sessionServer.listen(this.config.listenSocket);
+                            this._listen();
                         });
                     }
                 });
 
-                sock.connect({ path: this.config.listenSocket }, () => {
+                sock.connect({ path: this.config.listen.path }, () => {
                     console.error(
                         "Cannot listen on '"
-                            + this.config.listenSocket
+                            + this.config.listen.path
                             + "': socket in use"
                     );
                     process.exitCode = 1;
 
                     sock.destroy();
                 });
+            }
+            else {
+                throw error;
             }
         });
     }
