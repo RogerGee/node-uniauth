@@ -82,13 +82,23 @@ class Kernel {
 
             this._serve();
         });
+
+        stream.on("error",(err) => {
+            throw new ErrorF(
+                "Cannot read specified config file '%s': %s",
+                this.options.configFile,
+                err.message
+            );
+        });
     }
 
     stop(signal,callback) {
         this.sessionHandlers.forEach((handler) => {
             handler.stop();
         });
-        this.sessionServer.close(callback);
+        if (this.sessionServer != null) {
+            this.sessionServer.close(callback);
+        }
     }
 
     getSession(key) {
@@ -112,13 +122,13 @@ class Kernel {
     _listen() {
         if (this.config.listen.path) {
             if (typeof this.config.listen.path !== "string") {
-                throw new Error("listen.path must be a string");
+                throw new ErrorF("Config property 'listen.path' must be a string");
             }
             this.sessionServer.listen(this.config.listen.path);
         }
         else if (this.config.listen.port) {
             if (typeof this.config.listen.port !== "number") {
-                throw new Error("listen.port must be a number");
+                throw new ErrorF("Config property 'listen.port' must be a number");
             }
             if (this.config.listen.host) {
                 this.sessionServer.listen(this.config.listen.port,this.config.listen.host);
@@ -128,7 +138,7 @@ class Kernel {
             }
         }
         else {
-            throw new Error("cannot listen: no such configuration");
+            throw new ErrorF("Cannot listen: no such configuration");
         }
     }
 
@@ -150,7 +160,7 @@ class Kernel {
         this.sessionServer.on("error",(error) => {
             if (error.code == "EADDRINUSE") {
                 if (!this.config.listen.path) {
-                    throw new Error("cannot listen: address is already in use");
+                    throw new ErrorF("Cannot listen: address is already in use");
                 }
 
                 const sock = new net.Socket();
@@ -158,13 +168,10 @@ class Kernel {
                     if (innerError.code == "ECONNREFUSED") {
                         fs.unlink(this.config.listen.path, (err) => {
                             if (err) {
-                                console.error(
-                                    "Cannot listen on '"
-                                        + this.config.listen.path
-                                        + "': cannot recreate socket"
+                                throw new ErrorF(
+                                    "Cannot listen on '%s': cannot recreate socket",
+                                    this.config.listen.path
                                 );
-                                process.exitCode = 1;
-                                return;
                             }
 
                             this._listen();
@@ -173,14 +180,8 @@ class Kernel {
                 });
 
                 sock.connect({ path: this.config.listen.path }, () => {
-                    console.error(
-                        "Cannot listen on '"
-                            + this.config.listen.path
-                            + "': socket in use"
-                    );
-                    process.exitCode = 1;
-
                     sock.destroy();
+                    throw new ErrorF("Cannot listen on '%s': socket in use");
                 });
             }
             else {

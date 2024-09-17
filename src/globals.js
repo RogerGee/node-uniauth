@@ -1,4 +1,3 @@
-
 // globals.js
 
 const { format } = require('util');
