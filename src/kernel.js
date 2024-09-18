@@ -11,6 +11,8 @@ const YAML = require("yaml");
 const merge = require("deepmerge");
 
 const { SessionHandler } = require("./session-handler");
+const { StorageInMemory } = require("./storage/storage-in-memory");
+const { StorageSqlite } = require("./storage/storage-sqlite");
 
 const OPTION_DEFAULTS = {
     debug: false,
@@ -28,7 +30,10 @@ const CONFIG_DEFAULTS = {
         port: 8000,
         path: null
     },
-    record_store: "/var/lib/node-uniauth/records.db"
+    record_store: {
+        inmemory: false,
+        sqlite: "/var/lib/node-uniauth/records.db"
+    }
 };
 
 const CONFIG_DEFAULTS_DEBUG = {
@@ -37,7 +42,10 @@ const CONFIG_DEFAULTS_DEBUG = {
         port: 8002,
         path: null
     },
-    record_store: "./local/records.db"
+    record_store: {
+        inmemory: true,
+        sqlite: null
+    }
 };
 
 class Kernel {
@@ -52,8 +60,8 @@ class Kernel {
         this.config = {};
 
         this.sessionServer = null;
+        this.sessionStorage = null;
         this.sessionHandlers = new Map();
-        this.sessionStorage = new Map();
     }
 
     start() {
@@ -80,7 +88,7 @@ class Kernel {
                     : CONFIG_DEFAULTS;
             }
 
-            this._serve();
+            this._setUp();
         });
 
         stream.on("error",(err) => {
@@ -117,6 +125,20 @@ class Kernel {
 
         this.sessionStorage.delete(key);
         sess.purge();
+    }
+
+    _setUp() {
+        if (this.config.record_store.inmemory) {
+            this.sessionStorage = new StorageInMemory();
+        }
+        else if (this.config.record_store.sqlite) {
+            this.sessionStorage = new StorageSqlite(this.config.record_store.sqlite);
+        }
+        else {
+            throw new ErrorF("Property 'record_store' does not resolve to valid configuration");
+        }
+
+        this._serve();
     }
 
     _listen() {
