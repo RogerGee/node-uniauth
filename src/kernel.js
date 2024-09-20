@@ -109,21 +109,21 @@ class Kernel {
         }
     }
 
-    getSession(key) {
+    async getSession(key) {
         return this.sessionStorage.get(key);
     }
 
-    putSession(sess) {
+    async putSession(sess) {
         this.sessionStorage.set(sess.key,sess);
     }
 
-    purgeSession(key) {
-        const sess = this.sessionStorage.get(key);
+    async purgeSession(key) {
+        const sess = await this.sessionStorage.get(key);
         if (!sess) {
             return;
         }
 
-        this.sessionStorage.delete(key);
+        await this.sessionStorage.delete(key);
         sess.purge();
     }
 

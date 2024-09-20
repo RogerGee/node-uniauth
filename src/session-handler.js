@@ -64,13 +64,13 @@ class SessionHandler extends EventEmitter {
         }
     }
 
-    handleLookup(message) {
+    async handleLookup(message) {
         if (!message.fields.key) {
             this.sendError("protocol error");
             return;
         }
 
-        const sess = this.kernel.getSession(message.fields.key);
+        const sess = await this.kernel.getSession(message.fields.key);
         if (!sess) {
             this.sendError("no such record");
             return;
@@ -80,13 +80,13 @@ class SessionHandler extends EventEmitter {
         this.sendRecord(sess);
     }
 
-    handleCommit(message) {
+    async handleCommit(message) {
         if (!message.fields.key) {
             this.sendError("protocol error");
             return;
         }
 
-        const sess = this.kernel.getSession(message.fields.key);
+        const sess = await this.kernel.getSession(message.fields.key);
         if (!sess) {
             this.sendError("no such record");
             return;
@@ -96,13 +96,13 @@ class SessionHandler extends EventEmitter {
         this.sendMessage("changes committed");
     }
 
-    handleCreate(message) {
+    async handleCreate(message) {
         if (!message.fields.key) {
             this.sendError("protocol error");
             return;
         }
 
-        let sess = this.kernel.getSession(message.fields.key);
+        let sess = await this.kernel.getSession(message.fields.key);
         if (sess && sess.isActive()) {
             this.sendError("record already exists");
             return;
@@ -113,7 +113,7 @@ class SessionHandler extends EventEmitter {
         }
         else {
             sess = new Session(message.fields.key);
-            this.kernel.putSession(sess);
+            await this.kernel.putSession(sess);
         }
 
         sess.commit(message.fields);
