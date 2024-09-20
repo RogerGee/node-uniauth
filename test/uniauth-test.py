@@ -56,9 +56,9 @@ def command(com,data):
 
 def extract_string(src,it):
     st = it
-    while it < len(src) and src[it] != "\x00":
+    while it < len(src) and src[it] != 0:
         it += 1
-    return src[st:it]
+    return src[st:it].decode("utf-8")
 
 
 def write_hex(b):
@@ -69,10 +69,13 @@ def write_hex(b):
 
     while addr < n:
         slice = b[addr:addr+16]
+        bs = []
+        for i in range(0,len(slice),2):
+            bs.append(slice[i:i+2])
 
         line = f"0x{{:0>{ndigits}x}}".format(addr) + "  "
-        line += "{:─<32}".format(slice.hex().upper()) + "  "
-        line += slice.decode("utf-8","replace")
+        line += "{:─<39}".format(" ".join([b.hex().upper() for b in bs])) + "  "
+        line += "".join([chr(b) if chr(b).isprintable() else "·" for b in slice])
 
         addr += 16
         print(line)
