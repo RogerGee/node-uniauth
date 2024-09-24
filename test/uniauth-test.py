@@ -49,6 +49,8 @@ def command(com,data):
             msg += b"\x05" + pack(str(len(data.redirect)+1)+"s",data.redirect)
         if hasattr(data,"tag"):
             msg += b"\x08" + pack(str(len(data.tag)+1)+"s",data.tag)
+        if hasattr(data,"lifetime"):
+            msg += b"\x09" + pack("<i",int(data.lifetime))
 
     msg += b"\xff"
     return msg
@@ -168,7 +170,8 @@ while True:
             print("fields:")
         data = Empty()
         while True:
-            print("  -> ",end="",flush=True)
+            if has_tty:
+                print("  -> ",end="",flush=True)
             line = stdin.readline().strip()
             if len(line) == 0:
                 break
