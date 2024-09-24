@@ -23,6 +23,11 @@ const END_OF_STR = "\u0000";
  */
 class Record {
     constructor() {
+        // Create property for record reference, which is handled by the
+        // storage handler.
+        this.ref = null;
+
+        // Initialize uniauth fields.
         this.purge();
     }
 

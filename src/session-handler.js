@@ -54,7 +54,7 @@ class SessionHandler extends EventEmitter {
             this.handleLookup(message);
         }
         else if (message.op == "commit") {
-            this.handleCommit(message)
+            this.handleCommit(message);
         }
         else if (message.op == "create") {
             this.handleCreate(message);
@@ -113,10 +113,10 @@ class SessionHandler extends EventEmitter {
         }
         else {
             sess = new Session(message.fields.key);
-            await this.kernel.putSession(sess);
         }
 
         sess.commit(message.fields);
+        await this.kernel.putSession(sess);
         this.sendMessage("record created");
     }
 

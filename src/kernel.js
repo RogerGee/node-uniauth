@@ -138,7 +138,9 @@ class Kernel {
             throw new ErrorF("Property 'record_store' does not resolve to valid configuration");
         }
 
-        this._serve();
+        this.sessionStorage.ready().then(() => {
+            this._serve();
+        });
     }
 
     _listen() {

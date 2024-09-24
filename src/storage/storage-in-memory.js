@@ -9,6 +9,10 @@ class StorageInMemory {
         this.store = new Map();
     }
 
+    ready() {
+        return Promise.resolve();
+    }
+
     async get(key) {
         return this.store.get(key);
     }
@@ -19,6 +23,10 @@ class StorageInMemory {
 
     async delete(key) {
         this.store.delete(key);
+    }
+
+    each(callback) {
+        this.store.forEach(callback);
     }
 }
 
