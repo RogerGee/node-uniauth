@@ -20,6 +20,7 @@ class SessionHandler extends EventEmitter {
         this.id = uuid();
         this.kernel = kernel;
         this.sock = sock;
+        this.addr = sock.address();
         this.parser = new MessageParser(sock);
         this.unsent = null;
     }
@@ -36,7 +37,8 @@ class SessionHandler extends EventEmitter {
         });
 
         this.parser.on("message",handlefn);
-        this.parser.on("error",(message,partial) => {
+        this.parser.on("error",(message,context) => {
+            this.kernel.logger.client("error: %s: op=%s fields=%s",message,context.op,JSON.stringify(context.fields));
             this.sock.destroy();
         });
     }
@@ -50,6 +52,13 @@ class SessionHandler extends EventEmitter {
     }
 
     handle(message) {
+        this.kernel.logger.debug(
+            "handle message: client=%s op=%s fields=%s",
+            this.addr.address,
+            message.op,
+            JSON.stringify(message.fields)
+        );
+
         if (message.op == "lookup") {
             this.handleLookup(message);
         }

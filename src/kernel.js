@@ -13,6 +13,7 @@ const merge = require("deepmerge");
 const { SessionHandler } = require("./session-handler");
 const { StorageInMemory } = require("./storage/storage-in-memory");
 const { StorageSqlite } = require("./storage/storage-sqlite");
+const { Logger } = require("./logger");
 
 const OPTION_DEFAULTS = {
     debug: false,
@@ -25,6 +26,9 @@ const OPTION_DEFAULTS_DEBUG = {
 };
 
 const CONFIG_DEFAULTS = {
+    logging: {
+        level: 1
+    },
     listen: {
         host: null,
         port: 8000,
@@ -40,6 +44,9 @@ const CONFIG_DEFAULTS = {
 };
 
 const CONFIG_DEFAULTS_DEBUG = {
+    logging: {
+        level: 3
+    },
     listen: {
         host: "127.0.0.1",
         port: 8002,
@@ -64,6 +71,7 @@ class Kernel {
         }
 
         this.config = {};
+        this.logger = new Logger(0);
 
         this.sessionServer = null;
         this.sessionStorage = null;
@@ -96,6 +104,10 @@ class Kernel {
                     : CONFIG_DEFAULTS;
             }
 
+            this.logger = new Logger(this.config.logging.level);
+            this.logger.message("node-uniauth server started");
+            this.logger.message("loaded configuration from file '%s'",this.options.configFile);
+
             this._setUp();
 
             this.timerCleanup = setInterval(
@@ -114,6 +126,8 @@ class Kernel {
     }
 
     stop(signal,callback) {
+        this.logger.message("stopping server: received %s",signal);
+
         this.sessionHandlers.forEach((handler) => {
             handler.stop();
         });
@@ -129,19 +143,24 @@ class Kernel {
     }
 
     async getSession(key) {
+        this.logger.debug("read session: key=%s",key);
         return this.sessionStorage.get(key);
     }
 
     async putSession(sess) {
         this.sessionStorage.set(sess.key,sess);
+        this.logger.debug("write session: key=%s",sess.key);
     }
 
     async purgeSession(sess) {
         await this.sessionStorage.delete(sess);
         sess.purge();
+        this.logger.debug("purge session: key=%s",sess.key);
     }
 
     async cleanup() {
+        this.logger.debug("running cleanup task");
+
         const set = [];
         const del = [];
 
@@ -166,6 +185,7 @@ class Kernel {
 
         for (const sess of del) {
             await this.purgeSession(sess);
+            this.logger.debug("cleanup: session=%s",sess.key);
         }
 
         await this.sessionStorage.cleanup();
@@ -182,6 +202,8 @@ class Kernel {
             throw new ErrorF("Property 'record_store' does not resolve to valid configuration");
         }
 
+        this.logger.debug("using storage backend '%s'",this.sessionStorage.constructor.name);
+
         this.sessionStorage.ready().then(() => {
             this._serve();
         });
@@ -193,6 +215,7 @@ class Kernel {
                 throw new ErrorF("Config property 'listen.path' must be a string");
             }
             this.sessionServer.listen(this.config.listen.path);
+            this.logger.message("listening on socket %s",this.config.listen.path);
         }
         else if (this.config.listen.port) {
             if (typeof this.config.listen.port !== "number") {
@@ -200,9 +223,11 @@ class Kernel {
             }
             if (this.config.listen.host) {
                 this.sessionServer.listen(this.config.listen.port,this.config.listen.host);
+                this.logger.message("listening on %s:%d",this.config.listen.host,this.config.listen.port);
             }
             else {
                 this.sessionServer.listen(this.config.listen.port);
+                this.logger.message("listening on *:%d",this.config.listen.port);
             }
         }
         else {
@@ -215,12 +240,16 @@ class Kernel {
         this._listen();
 
         this.sessionServer.on("connection",(sock) => {
+            const addr = sock.address();
             const handler = new SessionHandler(this,sock);
+
+            this.logger.client("connect: from=%s",addr.address);
 
             this.sessionHandlers.set(handler.getId(),handler);
             handler.start();
 
             handler.on("done",(id) => {
+                this.logger.client("shutdown: from=%s",addr.address);
                 this.sessionHandlers.delete(id);
             });
         });
