@@ -362,8 +362,8 @@ class StorageSqlite {
         sess.record.lifetime = row.lifetime;
 
         // Assign reference so we can identify the record in storage.
-        if (typeof row.sessionId === "number") {
-            sess.record.ref = row.sessionId;
+        if (row.recordId) {
+            sess.record.ref = row.recordId;
         }
 
         return sess;

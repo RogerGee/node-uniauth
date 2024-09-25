@@ -120,6 +120,38 @@ class SessionHandler extends EventEmitter {
         this.sendMessage("record created");
     }
 
+    async handleTransfer(message) {
+        if (!message.fields.src) {
+            this.sendError("protocol error: missing 'src'");
+            return;
+        }
+        if (!message.fields.dst) {
+            this.sendError("protocol error: missing 'dst");
+            return;
+        }
+
+        const src = await this.kernel.getSession(message.fields.src);
+        if (!src) {
+            this.sendError("no such source record to transfer");
+            return;
+        }
+
+        const dst = await this.kernel.getSession(message.fields.dst);
+        if (!dst) {
+            this.sendError("no such destination record for transfer");
+            return;
+        }
+
+        // If the sessions are not the same, make sure the destination session
+        // refers to the same record as the source.
+        if (src.key != dst.key) {
+            dst.record = src.record;
+            await this.kernel.putSession(dst);
+        }
+
+        this.sendMessage("transfer completed");
+    }
+
     sendMessage(message) {
         let buf = "";
 

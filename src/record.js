@@ -10,8 +10,8 @@ const FIELD_USER = "\u0002";
 const FIELD_DISPLAY = "\u0003";
 const FIELD_EXPIRE = "\u0004";
 const FIELD_REDIRECT = "\u0005";
-const FIELD_SRC = "\u0006";
-const FIELD_DST = "\u0007";
+const FIELD_SRC = "\u0006"; // never sent in server response
+const FIELD_DST = "\u0007"; // never sent in server response
 const FIELD_TAG = "\u0008";
 const FIELD_LIFETIME = "\u0009";
 
