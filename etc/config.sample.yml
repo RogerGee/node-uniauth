@@ -1,0 +1,31 @@
+## Sample node-uniauth config file
+
+## Configure logging behavior.
+logging:
+  ## Define logging level:
+  ##  - 0: No messages
+  ##  - 1: Operational messages
+  ##  - 2: Client messages
+  ##  - 3: Debug messages
+  level: 1
+
+## Configure the listener used to receive client connections.
+listen:
+  host: "127.0.0.1"
+  port: 8002
+
+  ## Set path (without 'host' and 'port') to use a domain socket.
+  #path: "/var/run/uniauth.sock"
+
+## Configure session storage.
+record_store:
+  ## If true, the sessions are only stored in-memory.
+  inmemory: false
+
+  ## If false, the sessions are stored persistently in an SQLite database.
+  sqlite: "/var/lib/node-uniauth/storage.db"
+
+## Configure cleanup job.
+cleanup:
+  ## Defines the cleanup job run interval (in seconds).
+  interval: 3600
