@@ -25,8 +25,13 @@ class StorageInMemory {
         this.store.delete(key);
     }
 
-    each(callback) {
+    async each(callback) {
         this.store.forEach(callback);
+        return this.store.size();
+    }
+
+    async cleanup() {
+        // Nothing to do
     }
 }
 

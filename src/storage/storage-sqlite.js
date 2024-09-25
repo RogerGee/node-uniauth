@@ -186,6 +186,32 @@ class StorageSqlite {
             });
         }));
 
+        promises.push(new Promise((resolve,reject) => {
+            const query =
+                `DELETE FROM record
+                 WHERE id IN (
+                   SELECT
+                     record.id
+                   FROM
+                     record
+                     LEFT JOIN session
+                       ON session.record_id = record.id
+                   GROUP BY
+                     record.id
+                   HAVING
+                     COUNT(session.key) = 0
+                 )`;
+
+            this.stmt.deleteOrphans = this.db.prepare(query,(err) => {
+                if (err) {
+                    reject(err);
+                }
+                else {
+                    resolve();
+                }
+            });
+        }));
+
         return Promise.all(promises);
     }
 
@@ -212,26 +238,18 @@ class StorageSqlite {
 
     async set(key,session) {
         return new Promise((resolve,reject) => {
-            const sessionParams = {
-                $key: key,
-                $redirect: session.redirect,
-                $tag: session.tag,
-                $recordId: null
-            };
-
-            const recordParams = {
-                $uid: session.record.uid,
-                $user: session.record.user,
-                $display: session.record.display,
-                $expire: session.record.expire.toString(), // convert bigint
-                $lifetime: session.record.lifetime
-            };
-
             const nextfn = (err,recordInfo) => {
                 if (err) {
                     reject(err);
                     return;
                 }
+
+                const sessionParams = {
+                    $key: key,
+                    $redirect: session.redirect,
+                    $tag: session.tag,
+                    $recordId: null
+                };
 
                 // Assign record reference and create link between session and
                 // record.
@@ -251,25 +269,37 @@ class StorageSqlite {
                 });
             };
 
-            if (session.isActive()) {
-                // Update 'record' record if it is active. Create a new one if
-                // the record has no existing reference.
-                if (session.record.ref) {
-                    this.stmt.setRecord.get(recordParams,nextfn);
-                }
-                else {
-                    this.stmt.createRecord.get(recordParams,nextfn);
-                }
+            // Update 'record' record. Create a new one if the record has no
+            // existing reference.
+            if (session.record.ref) {
+                const recordParams = {
+                    $id: session.record.ref,
+                    $uid: session.record.uid,
+                    $user: session.record.user,
+                    $display: session.record.display,
+                    $expire: session.record.expire.toString(), // convert bigint
+                    $lifetime: session.record.lifetime
+                };
+
+                this.stmt.setRecord.get(recordParams,nextfn);
             }
             else {
-                nextfn(null,null);
+                const recordParams = {
+                    $uid: session.record.uid,
+                    $user: session.record.user,
+                    $display: session.record.display,
+                    $expire: session.record.expire.toString(), // convert bigint
+                    $lifetime: session.record.lifetime
+                };
+
+                this.stmt.createRecord.get(recordParams,nextfn);
             }
         });
     }
 
-    async delete(key) {
+    async delete(sess) {
         const params = {
-            $key: key
+            $key: sess.key
         };
 
         return new Promise((resolve,reject) => {
@@ -284,12 +314,35 @@ class StorageSqlite {
         });
     }
 
-    each(callback) {
-        this.stmt.getAll.each((err,row) => {
-            if (!err && row) {
-                const sess = this._sessionFromRow(row);
-                callback(sess,sess.key);
-            }
+    async each(callback) {
+        return new Promise((resolve,reject) => {
+            this.stmt.getAll.each((err,row) => {
+                if (!err && row) {
+                    const sess = this._sessionFromRow(row);
+                    callback(sess,sess.key);
+                }
+            },(err,count) => {
+                if (err) {
+                    reject(err);
+                }
+                else {
+                    resolve(count);
+                }
+            });
+        });
+    }
+
+    async cleanup() {
+        // Delete any records orphaned by delete operations.
+        return new Promise((resolve,reject) => {
+            this.stmt.deleteOrphans.run((err) => {
+                if (err) {
+                    reject(err);
+                }
+                else {
+                    resolve();
+                }
+            });
         });
     }
 
@@ -300,11 +353,18 @@ class StorageSqlite {
         sess.record.uid = row.uid;
         sess.record.user = row.user;
         sess.record.display = row.display;
-        sess.record.expire = BigInt(row.expire);
+        if (row.expire) {
+            sess.record.expire = BigInt(row.expire);
+        }
+        else {
+            sess.record.expire = 0;
+        }
         sess.record.lifetime = row.lifetime;
 
         // Assign reference so we can identify the record in storage.
-        sess.record.ref = row.sessionId;
+        if (typeof row.sessionId === "number") {
+            sess.record.ref = row.sessionId;
+        }
 
         return sess;
     }

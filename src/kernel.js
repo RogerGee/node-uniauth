@@ -33,6 +33,9 @@ const CONFIG_DEFAULTS = {
     record_store: {
         inmemory: false,
         sqlite: "/var/lib/node-uniauth/records.db"
+    },
+    cleanup: {
+        interval: 3600
     }
 };
 
@@ -45,6 +48,9 @@ const CONFIG_DEFAULTS_DEBUG = {
     record_store: {
         inmemory: true,
         sqlite: null
+    },
+    cleanup: {
+        interval: 60
     }
 };
 
@@ -62,6 +68,8 @@ class Kernel {
         this.sessionServer = null;
         this.sessionStorage = null;
         this.sessionHandlers = new Map();
+
+        this.timerCleanup = null;
     }
 
     start() {
@@ -89,6 +97,11 @@ class Kernel {
             }
 
             this._setUp();
+
+            this.timerCleanup = setInterval(
+                this.cleanup.bind(this),
+                Math.max(this.config.cleanup.interval * 1000,1000)
+            );
         });
 
         stream.on("error",(err) => {
@@ -104,8 +117,14 @@ class Kernel {
         this.sessionHandlers.forEach((handler) => {
             handler.stop();
         });
+
         if (this.sessionServer != null) {
             this.sessionServer.close(callback);
+        }
+
+        if (this.timerCleanup != null) {
+            clearInterval(this.timerCleanup);
+            this.timerCleanup = null;
         }
     }
 
@@ -117,14 +136,39 @@ class Kernel {
         this.sessionStorage.set(sess.key,sess);
     }
 
-    async purgeSession(key) {
-        const sess = await this.sessionStorage.get(key);
-        if (!sess) {
-            return;
+    async purgeSession(sess) {
+        await this.sessionStorage.delete(sess);
+        sess.purge();
+    }
+
+    async cleanup() {
+        const set = [];
+        const del = [];
+
+        await this.sessionStorage.each((sess,key) => {
+            if (!sess.isActive()) {
+                if (sess.record.expire <= 0) {
+                    // Let a record with expire value of 0 last at least one
+                    // cleanup cycle. Such records may be used by applicants
+                    // waiting to register.
+                    sess.record.expire = 1;
+                    set.push(sess);
+                }
+                else {
+                    del.push(sess);
+                }
+            }
+        });
+
+        for (const sess of set) {
+            await this.putSession(sess);
         }
 
-        await this.sessionStorage.delete(key);
-        sess.purge();
+        for (const sess of del) {
+            await this.purgeSession(sess);
+        }
+
+        await this.sessionStorage.cleanup();
     }
 
     _setUp() {
