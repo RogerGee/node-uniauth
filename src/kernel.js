@@ -17,7 +17,7 @@ const { Logger } = require("./logger");
 
 const OPTION_DEFAULTS = {
     debug: false,
-    configFile: "/etc/node-uniauth/config.yml",
+    configFile: "/etc/node-uniauth.yml",
 };
 
 const OPTION_DEFAULTS_DEBUG = {
