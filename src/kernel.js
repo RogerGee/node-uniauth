@@ -7,9 +7,9 @@
 const fs = require("fs");
 const net = require("net");
 
-const YAML = require("yaml");
 const merge = require("deepmerge");
 
+const { Configuration } = require("./config");
 const { SessionHandler } = require("./session-handler");
 const { StorageInMemory } = require("./storage/storage-in-memory");
 const { StorageSqlite } = require("./storage/storage-sqlite");
@@ -23,42 +23,6 @@ const OPTION_DEFAULTS = {
 const OPTION_DEFAULTS_DEBUG = {
     debug: true,
     configFile: "./local/config.yml"
-};
-
-const CONFIG_DEFAULTS = {
-    logging: {
-        level: 1
-    },
-    listen: {
-        host: null,
-        port: 8000,
-        path: null
-    },
-    record_store: {
-        inmemory: false,
-        sqlite: "/var/lib/node-uniauth/records.db"
-    },
-    cleanup: {
-        interval: 3600
-    }
-};
-
-const CONFIG_DEFAULTS_DEBUG = {
-    logging: {
-        level: 3
-    },
-    listen: {
-        host: "127.0.0.1",
-        port: 8002,
-        path: null
-    },
-    record_store: {
-        inmemory: true,
-        sqlite: null
-    },
-    cleanup: {
-        interval: 60
-    }
 };
 
 class Kernel {
@@ -89,20 +53,7 @@ class Kernel {
         });
 
         stream.on("end",() => {
-            const parsed = YAML.parse(yaml);
-            if (parsed !== null && typeof parsed === "object") {
-                if (this.options.debug) {
-                    this.config = merge(CONFIG_DEFAULTS_DEBUG,parsed);
-                }
-                else {
-                    this.config = merge(CONFIG_DEFAULTS,parsed);
-                }
-            }
-            else {
-                this.config = this.options.debug
-                    ? CONFIG_DEFAULTS_DEBUG
-                    : CONFIG_DEFAULTS;
-            }
+            this.config = new Configuration(yaml,this.options.debug);
 
             this.logger = new Logger(this.config.logging.level);
             this.logger.message("node-uniauth server started");
