@@ -102,6 +102,7 @@ class SessionHandler extends EventEmitter {
         }
 
         sess.commit(message.fields);
+        await this.kernel.putSession(sess);
         this.sendMessage("changes committed");
     }
 
