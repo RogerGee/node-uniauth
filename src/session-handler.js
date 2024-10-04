@@ -10,9 +10,10 @@ const { v4: uuid } = require("uuid");
 const { Session } = require("./record");
 const { MessageParser } = require("./message-parser");
 
-const RESPONSE_MESSAGE = "\u0000";
-const RESPONSE_ERROR = "\u0001";
-const RESPONSE_RECORD = "\u0002";
+const RESPONSE_MESSAGE = Buffer.from(Uint8Array.from([0x00]));
+const RESPONSE_ERROR = Buffer.from(Uint8Array.from([0x01]));
+const RESPONSE_RECORD = Buffer.from(Uint8Array.from([0x02]));
+const END_OF_STR = Buffer.from(Uint8Array.from([0x00]));
 
 class SessionHandler extends EventEmitter {
     constructor(kernel,sock) {
@@ -163,47 +164,44 @@ class SessionHandler extends EventEmitter {
     }
 
     sendMessage(message) {
-        let buf = "";
+        let buf;
 
-        buf += RESPONSE_MESSAGE;
-        buf += message;
-        buf += "\u0000";
+        buf = RESPONSE_MESSAGE;
+        buf = Buffer.concat([buf,Buffer.from(message)]);
+        buf = Buffer.concat([buf,END_OF_STR]);
 
         this.writeOut(buf);
     }
 
     sendError(message) {
-        let buf = "";
+        let buf;
 
-        buf += RESPONSE_ERROR;
-        buf += message;
-        buf += "\u0000";
+        buf = RESPONSE_ERROR;
+        buf = Buffer.concat([buf,Buffer.from(message)]);
+        buf = Buffer.concat([buf,END_OF_STR]);
 
         this.writeOut(buf);
     }
 
     sendRecord(session) {
-        let buf = "";
+        let buf;
 
-        buf += RESPONSE_RECORD;
-        buf += session.toProtocol();
+        buf = RESPONSE_RECORD;
+        buf = Buffer.concat([buf,session.toProtocol()]);
 
         this.writeOut(buf);
     }
 
     writeOut(buf) {
-        const test = Buffer.alloc(buf.length);
-        test.write(buf,0,test.length,"binary");
-
-        if (typeof this.unsent === "string") {
-            this.unsent += buf;
+        if (this.unsent !== null) {
+            this.unsent = Buffer.concat([this.unsent,buf]);
             return;
         }
 
-        const result = this.sock.write(buf,"binary");
+        const result = this.sock.write(buf);
 
         if (!result) {
-            this.unsent = "";
+            this.unsent = buf;
             this.sock.once("drain", () => {
                 this.writeOut(this.unsent);
                 this.unsent = null;

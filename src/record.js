@@ -4,19 +4,19 @@
  * @module record
  */
 
-const FIELD_KEY = "\u0000";
-const FIELD_UID = "\u0001";
-const FIELD_USER = "\u0002";
-const FIELD_DISPLAY = "\u0003";
-const FIELD_EXPIRE = "\u0004";
-const FIELD_REDIRECT = "\u0005";
-const FIELD_SRC = "\u0006"; // never sent in server response
-const FIELD_DST = "\u0007"; // never sent in server response
-const FIELD_TAG = "\u0008";
-const FIELD_LIFETIME = "\u0009";
+const FIELD_KEY = Buffer.from(Uint8Array.from([0x00]));
+const FIELD_UID = Buffer.from(Uint8Array.from([0x01]));
+const FIELD_USER = Buffer.from(Uint8Array.from([0x02]));
+const FIELD_DISPLAY = Buffer.from(Uint8Array.from([0x03]));
+const FIELD_EXPIRE = Buffer.from(Uint8Array.from([0x04]));
+const FIELD_REDIRECT = Buffer.from(Uint8Array.from([0x05]));
+const FIELD_SRC = Buffer.from(Uint8Array.from([0x06])); // never sent in server response
+const FIELD_DST = Buffer.from(Uint8Array.from([0x07])); // never sent in server response
+const FIELD_TAG = Buffer.from(Uint8Array.from([0x08]));
+const FIELD_LIFETIME = Buffer.from(Uint8Array.from([0x09]));
 
-const FIELD_END = "\u00ff";
-const END_OF_STR = "\u0000";
+const FIELD_END = Buffer.from(Uint8Array.from([0xff]));
+const END_OF_STR = Buffer.from(Uint8Array.from([0x00]));
 
 /**
  * Represents a uniauth user record.
@@ -60,31 +60,31 @@ class Record {
     /**
      * Gets the protocol representation of the record.
      *
-     * @return {string}
+     * @return {Buffer}
      */
     toProtocol() {
-        let buf = "";
+        let buf;
         const intbuf = Buffer.alloc(8);
 
-        buf += FIELD_UID;
+        buf = FIELD_UID;
         intbuf.writeInt32LE(this.uid);
-        buf += intbuf.asciiSlice(0,4);
+        buf = Buffer.concat([buf,intbuf.subarray(0,4)]);
 
-        buf += FIELD_USER;
-        buf += this.user;
-        buf += END_OF_STR;
+        buf = Buffer.concat([buf,FIELD_USER]);
+        buf = Buffer.concat([buf,Buffer.from(this.user)]);
+        buf = Buffer.concat([buf,END_OF_STR]);
 
-        buf += FIELD_DISPLAY;
-        buf += this.display;
-        buf += END_OF_STR;
+        buf = Buffer.concat([buf,FIELD_DISPLAY]);
+        buf = Buffer.concat([buf,Buffer.from(this.display)]);
+        buf = Buffer.concat([buf,END_OF_STR]);
 
-        buf += FIELD_EXPIRE;
+        buf = Buffer.concat([buf,FIELD_EXPIRE]);
         intbuf.writeBigInt64LE(this.expire);
-        buf += intbuf.asciiSlice(0,8);
+        buf = Buffer.concat([buf,intbuf.subarray(0,8)]);
 
-        buf += FIELD_LIFETIME;
+        buf = Buffer.concat([buf,FIELD_LIFETIME]);
         intbuf.writeInt32LE(this.lifetime);
-        buf += intbuf.asciiSlice(0,4);
+        buf = Buffer.concat([buf,intbuf.subarray(0,4)]);
 
         return buf;
     }
@@ -147,32 +147,32 @@ class Session {
     /**
      * Gets the protocol representation of the session.
      *
-     * @return {string}
+     * @return {Buffer}
      */
     toProtocol() {
-        let buf = "";
+        let buf;
 
-        buf += FIELD_KEY;
-        buf += this.key;
-        buf += END_OF_STR;
+        buf = FIELD_KEY;
+        buf = Buffer.concat([buf,Buffer.from(this.key)]);
+        buf = Buffer.concat([buf,END_OF_STR]);
 
         if (this.isActive()) {
-            buf += this.record.toProtocol();
+            buf = Buffer.concat([buf,this.record.toProtocol()]);
         }
 
         if (this.redirect) {
-            buf += FIELD_REDIRECT;
-            buf += this.redirect;
-            buf += END_OF_STR;
+            buf = Buffer.concat([buf,FIELD_REDIRECT]);
+            buf = Buffer.concat([buf,Buffer.from(this.redirect)]);
+            buf = Buffer.concat([buf,END_OF_STR]);
         }
 
         if (this.tag) {
-            buf += FIELD_TAG;
-            buf += this.tag;
-            buf += END_OF_STR;
+            buf = Buffer.concat([buf,FIELD_TAG]);
+            buf = Buffer.concat([buf,Buffer.from(this.tag)]);
+            buf = Buffer.concat([buf,END_OF_STR]);
         }
 
-        buf += FIELD_END;
+        buf = Buffer.concat([buf,FIELD_END]);
 
         return buf;
     }
