@@ -31,7 +31,7 @@ const CONFIG_DEFAULTS = {
     },
     listen: {
         host: null,
-        port: 8000,
+        port: 7033,
         path: null
     },
     record_store: {
@@ -49,7 +49,7 @@ const CONFIG_DEFAULTS_DEBUG = {
     },
     listen: {
         host: "127.0.0.1",
-        port: 8002,
+        port: 7033,
         path: null
     },
     record_store: {

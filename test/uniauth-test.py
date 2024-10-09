@@ -149,7 +149,7 @@ def print_response(response):
 
 has_tty = isatty(stdin.fileno())
 # addr = "\0uniauth"
-addr = ("127.0.0.1",8002)
+addr = ("127.0.0.1",7033)
 sock_family = AF_INET
 sock_type = SOCK_STREAM
 
