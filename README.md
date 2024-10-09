@@ -6,7 +6,9 @@ Uniauth server implementation written for Node.js
 
 Uniauth is an authentication solution used to help implement single sign-on (SSO) via a simple protocol. Uniauth is designed to work on an internal network with applications that are trusted. (It should not be used to authenticate external applications.)
 
-Uniauth does not implement authentication directly; it only provides a session server to manage and share authentication sessions. A uniauth server can link multiple sessions to one authentication record (e.g. when a user signs in to `alpha.com` via `beta.com`).
+Uniauth does not implement authentication directly; it only provides a session server to manage and share authentication sessions. A uniauth server can link multiple sessions to one authentication record (e.g. when a user signs in to `alpha.com` via `beta.com`) using a simple authentication flow mechanism.
+
+The server implements the fundamental operations required to implement the authentication within a client. For example, creating a record, reading a record, updating a record and transfering (i.e. linking) one record to another, ETC. The server also manages session lifetime, cleaning up records that have gone past their expiration.
 
 ## Installation (without Docker)
 
@@ -27,7 +29,7 @@ Run the service like so:
 ~~~shell
 ./node-uniauth.js -f /path/to/config.yml
 
-# If you installed via NPM, the command would be:
+# If you installed globally via NPM, the command would be:
 node-uniauth -f /path/to/config.yml
 ~~~
 
