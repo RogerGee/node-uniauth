@@ -1,6 +1,6 @@
 {
   "name": "@rserver/node-uniauth",
-  "version": "1.0.0-dev",
+  "version": "1.0.0",
   "description": "Uniauth server implementation",
   "main": "src/main.js",
   "scripts": {
