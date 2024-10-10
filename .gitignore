@@ -1,0 +1,5 @@
+#
+# .gitignore - node-uniauth
+#
+
+node_modules/

@@ -1,0 +1,16 @@
+## node-uniauth config file for Docker image
+
+logging:
+  level: ${NODE_UNIAUTH_LOG_LEVEL}
+
+listen:
+  host: 0.0.0.0
+  port: ${NODE_UNIAUTH_PORT}
+  path: ${NODE_UNIAUTH_PATH}
+
+record_store:
+  inmemory: ${NODE_UNIAUTH_STORAGE_INMEMORY}
+  sqlite: "/var/lib/node-uniauth/storage.db"
+
+cleanup:
+  interval: ${NODE_UNIAUTH_CLEANUP_INTERVAL}
